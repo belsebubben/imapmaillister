@@ -6,6 +6,7 @@ provided as arguments or by means of config file.
 Usage: imapchecker.py [options]
 
 Simple imapchecker
+```
 
 Options:
   --version             show program's version number and exit
@@ -21,6 +22,7 @@ Options:
                         Imap directory to show
   -c CONFIG, --config=CONFIG
                         Config file to use
+```
 
 
 ### Config file format - default location **~/.imapmaillister**
