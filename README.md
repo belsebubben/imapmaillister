@@ -23,10 +23,12 @@ Options:
                         Config file to use
 
 
-#Config file format - default location ~/.imapmaillister
+### Config file format - default location **~/.imapmaillister**
+```
 [main]
 server = outlook.office365.com
 user = user.name@companyexample.com
 password = Changeme
 directory = Inbox
 port = 993
+```
