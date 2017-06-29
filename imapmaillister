@@ -1,22 +1,28 @@
 #!/usr/bin/python3
+'''
+Listing mail messages from an imap account
+'''
 
 import imaplib
 import optparse
 import configparser
 from collections import namedtuple
-import sys, os
+import sys
+import os
 import email
 import email.header
-import dateutil
-import datetime
-import dateutil.parser
 import signal
+import dateutil
+import dateutil.parser
 
-CONFIG_FILE = os.path.expanduser( '~/.imapmaillister') 
+CONFIG_FILE = os.path.expanduser('~/.imapmaillister')
 
 class Configuration(object):
+    '''Parsing the configurations'''
     def parse_args(self):
-        self.opts = optparse.OptionParser(description='Simple imapchecker', prog='imapmaillister', version='0.1')
+        '''Parsing of cli args'''
+        self.opts = optparse.OptionParser(description='Simple imapchecker',\
+                prog='imapmaillister', version='0.1')
         self.opts.add_option("--server", "-s", help="imapserver")
         self.opts.add_option("--port", "-P", help="server port", default=993)
         self.opts.add_option("--user", "-u", help="username")
@@ -27,11 +33,12 @@ class Configuration(object):
         self.options, self.arguments = self.opts.parse_args()
         return (self.options, self.arguments)
 
-    def ValidateConfig(self):
+    def validateconfig(self):
+        '''Config validation'''
         demanded = ('server', 'user', 'password')
-        for d in demanded:
-            if not self.options.__dict__.get(d):
-                print('Config error: missing variable: {0}'.format(d))
+        for dem in demanded:
+            if not self.options.__dict__.get(dem):
+                print('Config error: missing variable: {0}'.format(dem))
                 self.opts.print_help()
                 sys.exit(1)
 
@@ -45,24 +52,28 @@ class Configuration(object):
             self.options.user = self.configuration.get('main', "user")
             self.options.password = self.configuration.get('main', "password")
             self.options.directory = self.configuration.get('main', "directory")
-
-        self.ValidateConfig()
+        self.validateconfig()
 
 # Timeout signal handler
 def timeout_handler(signum, frame):
+    '''We do not want to wait forever'''
     print("Connection time out!")
-    raise Exception("end of time")
+    raise Exception("end of time {0} {1}".format(signum, frame))
 # Register signal
 signal.signal(signal.SIGALRM, timeout_handler)
 
 Mailmessage = namedtuple('Mailmessage', 'date fromsender subject')
 
 class ImapConnection(object):
+    '''Defining / handling the connection to the imap server'''
 
     def print_mails(self):
-        print('{0}\t{1}\t{2}'.format( 'Date'.ljust(17), 'From'.ljust(self.maxsfromlen), 'Subject'.ljust( self.maxsubjectlen) ) )
+        '''Latest mails in picked folder printed on stdout'''
+        print('{0}\t{1}\t{2}'.format('Date'.ljust(17), 'From'.ljust(self.maxsfromlen),\
+                'Subject'.ljust(self.maxsubjectlen)))
         for mail in self.mailmessages:
-            print('{0}\t{1}\t{2}'.format(mail.date, mail.fromsender.ljust(self.maxsfromlen), mail.subject.replace('\r\n', ' ')).ljust(self.maxsubjectlen)[0:100])
+            print('{0}\t{1}\t{2}'.format(mail.date, mail.fromsender.ljust(self.maxsfromlen),\
+                    mail.subject.replace('\r\n', ' ')).ljust(self.maxsubjectlen)[0:100])
 
     def __init__(self, options):
         self.o = options
@@ -74,38 +85,38 @@ class ImapConnection(object):
             self.connection.login(self.o.user, self.o.password)
             self.connection.select(self.o.directory, readonly=True)
         except Exception as exc:
-            print('An error occured trying to connect to server: {self.o.server}\n{exc}'.format(**locals()))
-        self.status, self.msgs = self.connection.search( None, '(UNSEEN UNDELETED)')
+            print('An error occured trying to connect to\
+                    server: {self.o.server}\n{exc}'.format(**locals()))
+        self.status, self.msgs = self.connection.search(None, '(UNSEEN UNDELETED)')
         self.msgs = self.msgs[0].decode('UTF-8', 'strict').split(' ')
         self.msgs.reverse()
-        maxsubjectlen = 0
-        for m in self.msgs[:5]:
-            mailmsg = email.message_from_bytes( self.connection.fetch( m, '(BODY[HEADER])')[1][0][1] )
+        self.maxsubjectlen = 0
+        for msg in self.msgs[:5]:
+            mailmsg = email.message_from_bytes(self.connection.fetch(msg, '(BODY[HEADER])')[1][0][1])
             subject, encoding = email.header.decode_header(mailmsg.get('Subject'))[0]
             msgdate = email.header.decode_header(mailmsg.get('Date'))[0][0]
             msgdate = dateutil.parser.parse(msgdate).strftime('%Y-%m-%d %H:%M')
             fromsender = email.header.decode_header(mailmsg.get('From'))[0][0]
-            if type(fromsender) == type(b'abc'):
+            if isinstance(fromsender, bytes):
                 fromsender = fromsender.decode(encoding or 'UTF-8', 'ignore')
             fromsender = fromsender.split('<')[0].replace('"', '')
-            if type(subject) == type(b'abc'):
+            if isinstance(subject, bytes):
                 subject = subject.decode(encoding or 'UTF-8', 'ignore')
 
             #print(msgdate, fromsender, subject)
             self.mailmessages.append(Mailmessage(msgdate, fromsender, subject))
-        
         self.maxsubjectlen = sorted([len(mail[2]) for mail in self.mailmessages])[-1]
         self.maxsfromlen = sorted([len(mail[1]) for mail in self.mailmessages])[-1]
-        self.print_mails()
 
 
 def main():
-    c = Configuration()
-    if c.options.debug:
-        print(c.options)
-        print(c.parsed_args)
-    connection = ImapConnection(c.options)
+    '''Main'''
+    cfg = Configuration()
+    if cfg.options.debug:
+        print(cfg.options)
+        print(cfg.parsed_args)
+    connection = ImapConnection(cfg.options)
+    connection.print_mails()
 
 if __name__ in '__main__':
     main()
-
